@@ -21,32 +21,20 @@ def add_statistics(normal_statistics, result_dict):
     return normal_statistics
 
 
-def analyze_opt(result_file):
-    if "c++" in result_file:
-        result_file = result_file.replace("c++", "cxx")
-    binary_name1 = result_file.split("+")[0]
-    binary_name2 = result_file.split("+")[1]
-    opt1 = binary_name1.split("_")[4]
-    opt2 = binary_name2.split("_")[4]
-    return opt1, opt2
-
-
 def summarize_cluster_statistics():
-    evaluate_method = "ModX"
-    ModX_evaluate_results_dir = r"/data1/jiaang/binkit2/6.evaluate_existing_work/"+ evaluate_method + "/results"
-    opt2opt_statistics = {}
+    evaluate_method = "N2NMatcher"
+    ModX_evaluate_results_dir = r"/data1/jiaang/binkit2/9.apply_classifier_to_fcg_nodes/evaluate_results_new/"
+    normal_statistics = {}
+    inlining_statistics = {}
     for binary_name in os.listdir(ModX_evaluate_results_dir):
         binary_dir = os.path.join(ModX_evaluate_results_dir, binary_name)
         for result_file in os.listdir(binary_dir):
-            opt1, opt2 = analyze_opt(result_file)
             result_file_path = os.path.join(binary_dir, result_file)
             result = read_json(result_file_path)
-            if opt1 not in opt2opt_statistics:
-                opt2opt_statistics[opt1] = {}
-            if opt2 not in opt2opt_statistics[opt1]:
-                opt2opt_statistics[opt1][opt2] = {}
-            opt2opt_statistics[opt1][opt2] = add_statistics(opt2opt_statistics[opt1][opt2], result)
-    write_json(evaluate_method + "_opt2opt_statistics.json", opt2opt_statistics)
+            normal_statistics = add_statistics(normal_statistics, result["statistics"]["normal"])
+            inlining_statistics = add_statistics(inlining_statistics, result["statistics"]["inlining"])
+    write_json(evaluate_method + "_normal_statistics.json", normal_statistics)
+    write_json(evaluate_method + "_inlining_statistics.json", inlining_statistics)
 
 
 if __name__ == '__main__':

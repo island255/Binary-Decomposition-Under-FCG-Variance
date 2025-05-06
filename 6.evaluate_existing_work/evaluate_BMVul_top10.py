@@ -4,10 +4,11 @@ import pickle
 from multiprocessing import Pool
 
 import networkx as nx
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 from tqdm import tqdm
 import sys
 import evaluate_utils
+import time
 
 
 def extract_clusters(O0_cluster_content):
@@ -56,6 +57,62 @@ def get_mapping_file(cluster_file1, mapping_folder):
     return mapping_file1
 
 
+def extract_compiler_info(filename):
+    """从文件名中提取编译器信息"""
+    parts = filename.split('_')
+    compiler = None
+    version = None
+    opt_level = None
+
+    for part in parts:
+        if part.startswith('gcc'):
+            compiler = 'gcc'
+            version = part[4:]
+        elif part.startswith('clang'):
+            compiler = 'clang'
+            version = part[6:]
+        elif part in ['O0', 'O1', 'O2', 'O3', 'Ofast', 'Os']:
+            opt_level = part
+
+    return compiler, version, opt_level
+
+
+def is_target_comparison(file1, file2):
+    """检查是否为目标比较组合"""
+    comp1, ver1, opt1 = extract_compiler_info(file1)
+    comp2, ver2, opt2 = extract_compiler_info(file2)
+
+    # 定义目标比较组合
+    target_combinations = [
+        ('gcc-11.2.0', 'Ofast', 'clang-6.0', 'O0'),
+        ('gcc-11.2.0', 'Ofast', 'clang-7.0', 'O0'),
+        ('gcc-11.2.0', 'Ofast', 'clang-4.0', 'O0'),
+        ('gcc-11.2.0', 'Ofast', 'clang-5.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-6.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-7.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-4.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-5.0', 'O0'),
+        ('gcc-6.5.0', 'Ofast', 'clang-4.0', 'O0'),
+        ('gcc-6.5.0', 'Ofast', 'clang-6.0', 'O0'),
+
+        ('gcc', '7.3.0', 'Ofast', 'clang', '8.0', 'O0'),
+        ('gcc', '7.3.0', 'Ofast', 'clang', '9.0', 'O0'),
+        ('gcc', '7.3.0', 'O3', 'clang', '8.0', 'O0'),
+        ('gcc', '7.3.0', 'O3', 'clang', '9.0', 'O0'),
+        ('gcc', '7.3.0', 'Ofast', 'clang', '10.0', 'O0'),
+        ('gcc', '7.3.0', 'Ofast', 'clang', '11.0', 'O0'),
+        ('gcc', '7.3.0', 'O3', 'clang', '10.0', 'O0'),
+        ('gcc', '7.3.0', 'O3', 'clang', '11.0', 'O0'),
+        ('gcc', '4.9.4', 'Ofast', 'clang', '8.0', 'O0'),
+        ('gcc', '4.9.4', 'Ofast', 'clang', '9.0', 'O0')
+    ]
+
+    combo1 = (f"{comp1}-{ver1}", opt1, f"{comp2}-{ver2}", opt2)
+    combo2 = (f"{comp2}-{ver2}", opt2, f"{comp1}-{ver1}", opt1)
+
+    return combo1 in target_combinations or combo2 in target_combinations
+
+
 def run_BMVul_evaluation_in_linux(cmd):
     binary_name, binary_to_cluster_files, mapping_folder, result_folder = cmd
     # print(fcg_folder, result_folder)
@@ -65,6 +122,11 @@ def run_BMVul_evaluation_in_linux(cmd):
                 continue
             cluster_file1 = binary_to_cluster_files[index1]
             cluster_file2 = binary_to_cluster_files[index2]
+
+            if not is_target_comparison(os.path.basename(os.path.dirname(cluster_file1)),
+                                        os.path.basename(os.path.dirname(cluster_file2))):
+                continue
+
             mapping_file1 = get_mapping_file(cluster_file1, mapping_folder)
             mapping_file2 = get_mapping_file(cluster_file2, mapping_folder)
             mapping1 = evaluate_utils.read_json(mapping_file1)
@@ -95,7 +157,7 @@ def run_BMVul_evaluation_in_linux(cmd):
 
 def run_BMVul_evaluation_dispatcher(cmd_list):
     print("running evaluation")
-    process_num = 4
+    process_num = 8
     p = Pool(int(process_num))
     with tqdm(total=len(cmd_list)) as pbar:
         for i, res in tqdm(enumerate(p.imap_unordered(run_BMVul_evaluation_in_linux, cmd_list))):
@@ -105,13 +167,17 @@ def run_BMVul_evaluation_dispatcher(cmd_list):
 
 
 def run_BMVul_evaluation():
-    arch = "clang-4.0_x86_64"
+    start_time = time.time()
+    arch = ""
     BMVul_results_folder = r"/data1/jiaang/binkit2/5.implement_strategy_of_existing_works/BMVul/results"
     cluster_files = get_cluster_files(BMVul_results_folder, arch)
     mapping_folder = r"/data1/jiaang/binkit2/Dataset/mapping_results"
-    result_folder = r"/data1/jiaang/binkit2/6.evaluate_existing_work/BMVul/results"
+    result_folder = r"/data1/jiaang/binkit2/6.evaluate_existing_work/BMVul/results_top10"
     cmd_list = generate_cmds(cluster_files, mapping_folder, result_folder)
     run_BMVul_evaluation_dispatcher(cmd_list)
+    end_time = time.time()
+    print(end_time - start_time)
+    evaluate_utils.write_json("BMVul_running_time.json", end_time - start_time)
 
 
 if __name__ == '__main__':

@@ -49,31 +49,34 @@ def evaluate_single_model(iter_times, n_estimators_list, call_site_feature_and_l
     parameter_list = []
     for x in range(iter_times):
         train_csv_content, test_csv_content, train_projects, test_projects, test_binary_functions = \
-            split_dataset_by_projects(call_site_feature_and_labels)
+            split_dataset_by_projects(call_site_feature_and_labels, iteration=x)
 
-        training_data, training_label = extract_datas_and_target(train_csv_content, type="train", number=10000)
-        testing_data, testing_label = extract_datas_and_target(test_csv_content, type="test", number=10000)
+        training_data, training_label = extract_datas_and_target(train_csv_content, type="train", number=100000)
+        testing_data, testing_label = extract_datas_and_target(test_csv_content, type="test", number=100000000)
+        print(len(training_data), len(testing_data))
         for n_estimators in n_estimators_list:
+            print(x)
             para_list = [model, n_estimators, x, result_folder, test_binary_functions,
                          training_data, training_label, testing_data, testing_label]
-            parameter_list.append(para_list)
+            # parameter_list.append(para_list)
+            train_and_test_model(para_list)
 
-    process_num = 4
-    p = Pool(int(process_num))
-    with tqdm(total=len(parameter_list)) as pbar:
-        for i, res in tqdm(enumerate(p.imap_unordered(train_and_test_model, parameter_list))):
-            pbar.update()
-    p.close()
-    p.join()
+    # process_num = 4
+    # p = Pool(int(process_num))
+    # with tqdm(total=len(parameter_list)) as pbar:
+    #     for i, res in tqdm(enumerate(p.imap_unordered(train_and_test_model, parameter_list))):
+    #         pbar.update()
+    # p.close()
+    # p.join()
 
 
 def evaluate_models():
-    call_site_csv_file = "node_features_with_function_name_csv.csv"
+    call_site_csv_file = "node_features_with_function_name_csv_x86_64.csv"
     call_site_feature_and_labels = read_csv(call_site_csv_file)
     result_folder = "results"
     iter_times = 10
     n_estimators_list = [300]
-    for model in [KNN, LR, RF, GB, adaboost]:
+    for model in [adaboost]:
         print("evaluating model {}".format(model))
         evaluate_single_model(iter_times, n_estimators_list, call_site_feature_and_labels, model, result_folder)
 

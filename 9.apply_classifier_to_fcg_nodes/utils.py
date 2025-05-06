@@ -38,23 +38,57 @@ def write_pickle(pickle_file, obj):
         pickle.dump(obj, f)
 
 
-def split_dataset_by_projects(call_site_feature_and_labels, train_percent=0.9):
+def split_dataset_by_projects(call_site_feature_and_labels, train_percent=0.9, iteration=0):
     test_binary_functions = []
     all_project_name = []
     for line in call_site_feature_and_labels[1:]:
         if line[0] not in all_project_name:
             all_project_name.append(line[0])
-    train_csv_content = [call_site_feature_and_labels[0][4:]]
-    test_csv_content = [call_site_feature_and_labels[0][4:]]
-    train_project_length = int(len(all_project_name) * train_percent)
-    train_projects = random.sample(all_project_name, train_project_length)
+
+    # 确保所有项目在10次迭代中都能成为测试集
+    num_projects = len(all_project_name)
+    test_size = max(1, int(num_projects * (1 - train_percent)))  # 至少1个项目作为测试集
+    num_iterations = 10
+
+    # 计算每个项目应该出现在测试集中的次数
+    projects_per_iteration = [[] for _ in range(num_iterations)]
+    for i, project in enumerate(all_project_name):
+        iteration_idx = i % num_iterations
+        projects_per_iteration[iteration_idx].append(project)
+
+    # 确保每个迭代的测试集大小大致相同
+    test_projects = []
+    remaining_projects = all_project_name.copy()
+
+    # 分配项目到当前迭代
+    iteration_idx = iteration % num_iterations
+    test_projects = projects_per_iteration[iteration_idx]
+
+    # 如果测试项目太少，从剩余项目中补充
+    if len(test_projects) < test_size:
+        remaining = [p for p in remaining_projects if p not in test_projects]
+        needed = test_size - len(test_projects)
+        if needed > 0 and remaining:
+            additional = random.sample(remaining, min(needed, len(remaining)))
+            test_projects.extend(additional)
+
+    # 如果测试项目太多，随机保留指定数量
+    if len(test_projects) > test_size:
+        test_projects = random.sample(test_projects, test_size)
+
+    train_projects = list(set(all_project_name).difference(set(test_projects)))
+
+    # 构建训练集和测试集
+    train_csv_content = [call_site_feature_and_labels[0][6:]]
+    test_csv_content = [call_site_feature_and_labels[0][6:]]
+
     for line in call_site_feature_and_labels[1:]:
         if line[0] in train_projects:
-            train_csv_content.append(line[4:])
+            train_csv_content.append(line[6:])
         else:
-            test_csv_content.append(line[4:])
+            test_csv_content.append(line[6:])
             test_binary_functions.append([line[1], line[2], line[3]])
-    test_projects = list(set(all_project_name).difference(set(train_projects)))
+
     return train_csv_content, test_csv_content, train_projects, test_projects, test_binary_functions
 
 
@@ -71,15 +105,11 @@ def extract_datas_and_target(call_site_csv_content, type="train", number=10000):
         data0 = []
         data1 = []
         for line in call_site_csv_content[1:]:
-            if len(line) != 297:
-                print(len(line))
-                raise Exception
             label = int(line[-1])
             if label:
                 data1.append(list(map(int, line)))
             else:
                 data0.append(list(map(int, line)))
-
         if len(data0) > number:
             data0 = random.sample(data0, number)
         if len(data1) > number:
@@ -89,12 +119,15 @@ def extract_datas_and_target(call_site_csv_content, type="train", number=10000):
         data = [row[:-1] for row in final_data]
         label = [row[-1] for row in final_data]
     else:
-        data = []
-        label = []
+        data0 = []
+        data1 = []
         for line in call_site_csv_content[1:]:
-            if len(line) != 297:
-                print(len(line))
-                raise Exception
-            data.append(list(map(int, line[:-1])))
-            label.append(int(line[-1]))
+            label = int(line[-1])
+            if label:
+                data1.append(list(map(int, line)))
+            else:
+                data0.append(list(map(int, line)))
+        final_data = mix_arrays(data0, data1)
+        data = [row[:-1] for row in final_data]
+        label = [row[-1] for row in final_data]
     return numpy.array(data), numpy.array(label)

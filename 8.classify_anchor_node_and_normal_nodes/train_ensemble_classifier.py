@@ -4,7 +4,7 @@ from tqdm import tqdm
 import numpy as np
 from multiprocessing import Pool
 import os
-from ensemble_models import KNN, LR, RF, GB, adaboost, LDA, QDA, SVM, NBC
+from ensemble_models import KNN, LR, RF, GB, adaboost
 from utils import split_dataset_by_projects, extract_datas_and_target, read_csv, write_pickle
 
 
@@ -43,8 +43,8 @@ def train_and_test_model(para_list):
 def evaluate_single_model(iter_times, n_estimators_list, call_site_feature_and_labels, model, result_folder):
     parameter_list = []
     for x in range(iter_times):
-        train_csv_content, test_csv_content, train_projects, test_projects = \
-            split_dataset_by_projects(call_site_feature_and_labels)
+        train_csv_content, test_csv_content, train_projects, test_projects, test_binary_functions = \
+            split_dataset_by_projects(call_site_feature_and_labels, iteration=x)
 
         training_data, training_label = extract_datas_and_target(train_csv_content, type="train", number=10000)
         testing_data, testing_label = extract_datas_and_target(test_csv_content, type="test", number=10000)
@@ -53,7 +53,7 @@ def evaluate_single_model(iter_times, n_estimators_list, call_site_feature_and_l
                          training_data, training_label, testing_data, testing_label]
             parameter_list.append(para_list)
 
-    process_num = 4
+    process_num = 10
     p = Pool(int(process_num))
     with tqdm(total=len(parameter_list)) as pbar:
         for i, res in tqdm(enumerate(p.imap_unordered(train_and_test_model, parameter_list))):
@@ -63,12 +63,12 @@ def evaluate_single_model(iter_times, n_estimators_list, call_site_feature_and_l
 
 
 def evaluate_models():
-    call_site_csv_file = "node_features_csv.csv"
+    call_site_csv_file = "sampled_node_features_with_function_name_csv_x86_64.csv"
     call_site_feature_and_labels = read_csv(call_site_csv_file)
     result_folder = "results"
     iter_times = 10
     n_estimators_list = list(range(10, 310, 10))
-    for model in [LDA, QDA, SVM, NBC]:
+    for model in [KNN, LR, RF, GB, adaboost]:
         print("evaluating model {}".format(model))
         evaluate_single_model(iter_times, n_estimators_list, call_site_feature_and_labels, model, result_folder)
 

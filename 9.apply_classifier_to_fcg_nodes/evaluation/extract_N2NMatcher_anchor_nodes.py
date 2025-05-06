@@ -1,9 +1,10 @@
+# encoding=utf-8
 import json
 import os
 import pickle
 import time
 from multiprocessing import Pool
-
+import evaluate_utils
 from tqdm import tqdm
 
 
@@ -54,7 +55,7 @@ def get_binary_fcg_labels(results_folder):
                     project_binary_name, opt, function_name = test_binary_func
                     splitter_position = find_char_positions(project_binary_name, "+")
                     project_name = project_binary_name[:splitter_position[0]]
-                    binary_name = project_binary_name[splitter_position[0]+1:]
+                    binary_name = project_binary_name[splitter_position[0] + 1:].replace("_x86_64", "")
                     label = testing_label[index]
                     # print(test_binary_functions)
                     if project_name not in binary_fcg_labels:
@@ -87,24 +88,33 @@ def traverse_from_common_nodes(fcg, anchor_nodes):
     return inlining_communities
 
 
-def extract_anchor_nodes(binary_fcg_func_labels):
-    anchor_nodes = []
+def extract_anchor_nodes(binary_fcg, binary_fcg_func_labels):
+    normal_nodes = []
     for func_name in binary_fcg_func_labels:
-        if binary_fcg_func_labels[func_name]:
-            anchor_nodes.append(func_name)
+        if not binary_fcg_func_labels[func_name]:
+            normal_nodes.append(func_name)
+    anchor_nodes = list(set(binary_fcg.nodes()).difference(set(normal_nodes)))
     return anchor_nodes
+
+
+def examine_node_label_numbers(binary_fcg, binary_fcg_func_labels):
+    print('number of nodes', binary_fcg.number_of_nodes())
+    print('number of predicted labels', len(list(binary_fcg_func_labels.keys())))
+
 
 
 def extract_anchor_communities(binary_fcg_path, binary_fcg_func_labels):
     binary_fcg = read_pickle(binary_fcg_path)
-    anchor_nodes = extract_anchor_nodes(binary_fcg_func_labels)
+    anchor_nodes = extract_anchor_nodes(binary_fcg, binary_fcg_func_labels)
+    # examine_node_label_numbers(binary_fcg, binary_fcg_func_labels)
     anchor_community = traverse_from_common_nodes(binary_fcg, anchor_nodes)
     return anchor_community
 
 
 def extract_binary_name_from_fcg_file_name(binary_fcg_path):
-    binary_name = binary_fcg_path.replace(".i64.fcg.fcg_pkl", "").split("_")[-1]
-    opt = binary_fcg_path.replace(".i64.fcg.fcg_pkl", "").split("_")[-2]
+    binary_fcg_name = os.path.basename(binary_fcg_path)
+    binary_name = binary_fcg_name.replace(".i64.fcg.fcg_pkl", "").split("_")[-1]
+    opt = "_".join(binary_fcg_name.replace(".i64.fcg.fcg_pkl", "").split("_")[1:-1])
     return binary_name, opt
 
 
@@ -115,11 +125,13 @@ def traverse_fcg_files(FCG_path, binary_fcg_labels):
         print("processing project {}, use anchor to divide fcgs ...".format(project_name))
         fcg_project_folder = os.path.join(FCG_path, project_name)
         for binary_fcg_name in tqdm(os.listdir(fcg_project_folder)):
-            if not binary_fcg_name.endswith(".fcg_pkl") or "clang-4.0_x86_64" not in binary_fcg_name:
+            if not binary_fcg_name.endswith(".fcg_pkl"):
                 continue
             binary_fcg_path = os.path.join(fcg_project_folder, binary_fcg_name)
             binary_name, opt = extract_binary_name_from_fcg_file_name(binary_fcg_path)
-            if binary_name not in binary_fcg_labels[project_name] or opt not in binary_fcg_labels[project_name][binary_name]:
+            # print(binary_name, opt)
+            if binary_name not in binary_fcg_labels[project_name] or opt not in binary_fcg_labels[project_name][
+                binary_name]:
                 continue
             binary_fcg_func_labels = binary_fcg_labels[project_name][binary_name][opt]
             start_time = time.time()
@@ -186,30 +198,57 @@ def evaluate_generated_clusters(O0_cluster, O3_cluster, O0_mapping, O3_mapping):
             "inlining_cluster_to_cluster_mappings": inlining_cluster_to_cluster_mappings}
 
 
-def summarize_mapping_statistics(cluster_to_cluster_mappings, cluster_mapping_statistics=None):
-    wrong_clusters = {}
-    if cluster_mapping_statistics is None:
-        cluster_mapping_statistics = {}
-    for cluster1 in cluster_to_cluster_mappings:
-        cluster1_list = cluster1.split("+")
-        cluster1_len = len(cluster1_list)
-        if cluster1_len not in cluster_mapping_statistics:
-            cluster_mapping_statistics[cluster1_len] = []
-        max_similarity = 0
-        for cluster2 in cluster_to_cluster_mappings[cluster1]:
-            similarity = cluster_to_cluster_mappings[cluster1][cluster2]
-            if similarity >= max_similarity:
-                max_similarity = similarity
-        if max_similarity != 1:
-            wrong_clusters[cluster1] = cluster_to_cluster_mappings[cluster1]
-        cluster_mapping_statistics[cluster1_len].append(max_similarity)
-    return cluster_mapping_statistics, wrong_clusters
+def extract_compiler_info(filename):
+    """从文件名中提取编译器信息"""
+    parts = filename.split('_')
+    compiler = None
+    version = None
+    opt_level = None
+
+    for part in parts:
+        if part.startswith('gcc'):
+            compiler = 'gcc'
+            version = part[4:]
+        elif part.startswith('clang'):
+            compiler = 'clang'
+            version = part[6:]
+        elif part in ['O0', 'O1', 'O2', 'O3', 'Ofast', 'Os']:
+            opt_level = part
+
+    return compiler, version, opt_level
 
 
-def evaluate_community_similarities(cmd):
+def is_target_comparison(file1, file2):
+    """检查是否为目标比较组合"""
+    comp1, ver1, opt1 = extract_compiler_info(file1)
+    comp2, ver2, opt2 = extract_compiler_info(file2)
+
+    # 定义目标比较组合（与BMVul相同）
+    target_combinations = [
+        ('gcc-11.2.0', 'Ofast', 'clang-6.0', 'O0'),
+        ('gcc-11.2.0', 'Ofast', 'clang-7.0', 'O0'),
+        ('gcc-11.2.0', 'Ofast', 'clang-4.0', 'O0'),
+        ('gcc-11.2.0', 'Ofast', 'clang-5.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-6.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-7.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-4.0', 'O0'),
+        ('gcc-11.2.0', 'O3', 'clang-5.0', 'O0'),
+        ('gcc-6.5.0', 'Ofast', 'clang-4.0', 'O0'),
+        ('gcc-6.5.0', 'Ofast', 'clang-6.0', 'O0')
+    ]
+
+    combo1 = (f"{comp1}-{ver1}", opt1, f"{comp2}-{ver2}", opt2)
+    combo2 = (f"{comp2}-{ver2}", opt2, f"{comp1}-{ver1}", opt1)
+
+    return combo1 in target_combinations or combo2 in target_combinations
+
+
+def run_N2NMatcher_evaluation(cmd):
+    """执行N2NMatcher评估"""
     project_binary_name, binary_fcg_to_communities = cmd
     results_folder = r"/data1/jiaang/binkit2/9.apply_classifier_to_fcg_nodes/evaluate_results_new"
     mapping_folder = r"/data1/jiaang/binkit2/Dataset/mapping_results"
+
     fcg_path_list = list(binary_fcg_to_communities.keys())
     for index1 in range(0, len(fcg_path_list)):
         for index2 in range(0, len(fcg_path_list)):
@@ -225,13 +264,10 @@ def evaluate_community_similarities(cmd):
             mapping1 = read_json(mapping_file1)
             mapping2 = read_json(mapping_file2)
 
-            cluster_to_cluster_mappings = evaluate_generated_clusters(community1, community2, mapping1, mapping2)
-            normal_cluster_mapping_statistics, normal_wrong_clusters = summarize_mapping_statistics(
-                cluster_to_cluster_mappings["normal_cluster_to_cluster_mappings"])
-            inlining_cluster_to_cluster_mappings, inlining_wrong_clusters = summarize_mapping_statistics(
-                cluster_to_cluster_mappings["inlining_cluster_to_cluster_mappings"])
-            cluster_mapping_statistics = {"normal": normal_cluster_mapping_statistics,
-                                          "inlining": inlining_cluster_to_cluster_mappings}
+            cluster_to_cluster_mappings = evaluate_utils.evaluate_generated_clusters(
+                community1, community2, mapping1, mapping2)
+            cluster_mapping_statistics = evaluate_utils.summarize_mapping_statistics(
+                cluster_to_cluster_mappings)
 
             anchor_info = {"statistics": cluster_mapping_statistics}
 
@@ -256,18 +292,18 @@ def evaluate_community_similarities_dispatcher(binary_name_to_fcg_communities):
     process_num = 12
     p = Pool(int(process_num))
     with tqdm(total=len(cmd_list)) as pbar:
-        for i, res in tqdm(enumerate(p.imap_unordered(evaluate_community_similarities, cmd_list))):
+        for i, res in tqdm(enumerate(p.imap_unordered(run_N2NMatcher_evaluation, cmd_list))):
             pbar.update()
     p.close()
     p.join()
 
 
 def main():
-    results_folder = r"/data1/jiaang/binkit2/9.apply_classifier_to_fcg_nodes/results"
+    results_folder = r"/data1/jiaang/binkit2/9.apply_classifier_to_fcg_nodes/results_top20/"
     binary_fcg_labels = get_binary_fcg_labels(results_folder)
     FCG_path = r"/data1/jiaang/binkit2/3.FCG_construction/FCG_pkl"
     binary_name_to_fcg_communities_file = "binary_name_to_fcg_communities.json"
-    running_time_file = "running_time.json"
+    running_time_file = "N2NMatcher_running_time.json"
 
     if not os.path.exists(binary_name_to_fcg_communities_file) or not os.path.exists(running_time_file):
         binary_name_to_fcg_communities, running_time = traverse_fcg_files(FCG_path, binary_fcg_labels)
@@ -275,7 +311,7 @@ def main():
         write_json(binary_name_to_fcg_communities_file, binary_name_to_fcg_communities)
     else:
         binary_name_to_fcg_communities = read_json(binary_name_to_fcg_communities_file)
-    # evaluate_community_similarities_dispatcher(binary_name_to_fcg_communities)
+    evaluate_community_similarities_dispatcher(binary_name_to_fcg_communities)
 
 
 if __name__ == '__main__':
