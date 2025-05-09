@@ -83,16 +83,16 @@ def is_target_comparison(file1, file2):
         ('gcc-6.5.0', 'Ofast', 'clang-4.0', 'O0'),
         ('gcc-6.5.0', 'Ofast', 'clang-6.0', 'O0'),
 
-        ('gcc', '7.3.0', 'Ofast', 'clang', '8.0', 'O0'),
-        ('gcc', '7.3.0', 'Ofast', 'clang', '9.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '8.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '9.0', 'O0'),
-        ('gcc', '7.3.0', 'Ofast', 'clang', '10.0', 'O0'),
-        ('gcc', '7.3.0', 'Ofast', 'clang', '11.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '10.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '11.0', 'O0'),
-        ('gcc', '4.9.4', 'Ofast', 'clang', '8.0', 'O0'),
-        ('gcc', '4.9.4', 'Ofast', 'clang', '9.0', 'O0')
+        ('gcc-7.3.0', 'Ofast', 'clang-8.0', 'O0'),
+        ('gcc-7.3.0', 'Ofast', 'clang-9.0', 'O0'),
+        ('gcc-7.3.0', 'O3', 'clang-8.0', 'O0'),
+        ('gcc-7.3.0', 'O3', 'clang-9.0', 'O0'),
+        ('gcc-7.3.0', 'Ofast', 'clang-10.0', 'O0'),
+        ('gcc-7.3.0', 'Ofast', 'clang-11.0', 'O0'),
+        ('gcc-7.3.0', 'O3', 'clang-10.0', 'O0'),
+        ('gcc-7.3.0', 'O3', 'clang-11.0', 'O0'),
+        ('gcc-4.9.4', 'Ofast', 'clang-8.0', 'O0'),
+        ('gcc-4.9.4', 'Ofast', 'clang-9.0', 'O0')
     ]
 
     combo1 = (f"{comp1}-{ver1}", opt1, f"{comp2}-{ver2}", opt2)
@@ -133,7 +133,7 @@ def run_ModX_evaluation_in_linux(cmd):
 
             # 存储结果以便后续分析
             comp_key = f"{os.path.basename(cluster_file1)}+{os.path.basename(cluster_file2)}"
-    # 保存所有比较结果到一个文件
+            # 保存所有比较结果到一个文件
             if cluster_mapping_statistics:
                 result_dir = os.path.join(result_folder, binary_name)
                 os.makedirs(result_dir, exist_ok=True)
