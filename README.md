@@ -35,7 +35,7 @@ please refer to https://github.com/island255/TOSEM2022
 
 3. run `8.classify_anchor_node_and_normal_nodes\reorganize_features_by_arch.py` to divide the features file into different archs, and run `8.classify_anchor_node_and_normal_nodes\train_ensemble_classifier.py` to train N2NMatcher and other methods on anchor node identification.
 
-4. run `9.apply_classifier_to_fcg_nodes\run_classifier_on_fcg.py` to iterate N2NMatcher 10 times to cover all projcts in testing and run `9.apply_classifier_to_fcg_nodes\evaluation\extract_N2NMatcher_anchor_nodes.py` to evaluate N2NMatcher on binary decomposition.
+4. run `9.apply_classifier_to_fcg_nodes\run_classifier_on_fcg.py` to iterate N2NMatcher 10 times to cover all projects in testing and run `9.apply_classifier_to_fcg_nodes\evaluation\evaluate_top20.py` to evaluate N2NMatcher on binary decomposition.
 
 ## License
 
