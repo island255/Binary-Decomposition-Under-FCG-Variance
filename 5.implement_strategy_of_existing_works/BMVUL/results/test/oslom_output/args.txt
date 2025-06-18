@@ -1,1 +1,0 @@
-D:\binkit2\related_work\OSLOM2\oslom_dir.exe -f c:\users\jiaang\appdata\local\temp\tmpkcffun\edges.tsv -w -r 10 -hr 10

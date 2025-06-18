@@ -4,6 +4,12 @@ import pickle
 import tqdm
 
 
+def read_json(file_path):
+    """read json file from disk"""
+    with open(file_path, "r") as f:
+        load_dict = json.load(f)
+        return load_dict
+
 def read_pickle(pickle_file):
     with open(pickle_file, "rb") as f:
         return pickle.load(f)
@@ -22,6 +28,8 @@ def read_binary_list(projectdir):
     binary_paths = []
     for root, dirs, files in os.walk(projectdir):
         for file_name in files:
+            if "mips" in file_name or "clang-13.0" in file_name:
+                continue
             if file_name.endswith(".fcg_pkl"):
                 file_path = os.path.join(root, file_name)
                 binary_paths.append(file_path)
@@ -56,7 +64,7 @@ def classify_binaries_by_name(binary_fcg_paths_list):
     return binary_to_fcg
 
 
-def analyze_opt_difference(binary_to_fcg):
+def analyze_opt_difference(binary_to_fcg, fcg_to_mappings):
     opt_difference = {}
     node_neighbor_difference = {}
     pbar = tqdm.tqdm(total=len(list(binary_to_fcg.keys())))
@@ -107,6 +115,41 @@ def analyze_opt_difference(binary_to_fcg):
     return opt_difference, node_neighbor_difference
 
 
+def read_mapping_list(projectdir):
+    binary_paths = []
+    for root, dirs, files in os.walk(projectdir):
+        for file_name in files:
+            if file_name.endswith("_function_mapping.json"):
+                if "mips" in file_name or "clang-13.0" in file_name:
+                    continue
+                file_path = os.path.join(root, file_name)
+                binary_paths.append(file_path)
+    return binary_paths
+
+
+def build_fcg_to_mappings(binary_mapping_paths_list):
+    binary_to_mapping = {}
+    for binary_mapping_path in tqdm.tqdm(binary_mapping_paths_list):
+        mapping_name = os.path.basename(binary_mapping_path)
+        fcg_name = mapping_name.replace("_function_mapping.json", ".i64.fcg.fcg_pkl")
+        binary_to_mapping[fcg_name] = binary_mapping_path
+    return binary_to_mapping
+
+def process_binary_mappings_files(mapping_results_folder, binary_to_mappings_file):
+    if not os.path.exists(binary_to_mappings_file):
+        project_name_list = os.listdir(mapping_results_folder)
+        binary_mapping_paths_list = []
+        for project_name in project_name_list:
+            binary_project_dir = os.path.join(mapping_results_folder, project_name)
+            binary_mapping_paths = read_mapping_list(binary_project_dir)
+            binary_mapping_paths_list += binary_mapping_paths
+        fcg_to_mappings = build_fcg_to_mappings(binary_mapping_paths_list)
+        write_json(binary_to_mappings_file, fcg_to_mappings)
+    else:
+        fcg_to_mappings = read_json(binary_to_mappings_file)
+    return fcg_to_mappings
+
+
 def main():
     fcg_pkl_folder = "/data1/jiaang/binkit2/3.FCG_construction/FCG_pkl"
     project_name_list = os.listdir(fcg_pkl_folder)
@@ -119,7 +162,11 @@ def main():
     binary_to_fcg = classify_binaries_by_name(binary_fcg_paths_list)
     write_json("binary_to_fcg.json", binary_to_fcg)
 
-    opt_difference, node_neighbor_difference = analyze_opt_difference(binary_to_fcg)
+    mapping_folder = "/data1/jiaang/binkit2/Dataset/mapping_results/"
+    binary_to_mappings_file = "fcg_to_mappings.json"
+    fcg_to_mappings = process_binary_mappings_files(mapping_folder, binary_to_mappings_file)
+
+    opt_difference, node_neighbor_difference = analyze_opt_difference(binary_to_fcg, fcg_to_mappings)
     write_json("opt_difference.json", opt_difference)
     write_json("node_neighbor_difference.json", node_neighbor_difference)
 

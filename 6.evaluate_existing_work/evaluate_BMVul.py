@@ -78,35 +78,40 @@ def extract_compiler_info(filename):
     return compiler, version, opt_level
 
 
+def extract_comparison_settings(top10_root_mapping):
+    target_combinations = []
+    for comparison_dict in top10_root_mapping["top_10"]:
+        comparison = comparison_dict["comparison"]
+        compiler_opt_1, compiler_opt_2 = comparison.split(" vs ")
+        compiler1, opt1 = compiler_opt_1.split("_")[2], compiler_opt_1.split("_")[3]
+        compiler2, opt2 = compiler_opt_2.split("_")[0], compiler_opt_2.split("_")[1]
+        target_combinations.append((compiler1, opt1, compiler2, opt2))
+    return target_combinations
+
+
+def read_from_mapping_files(top10_relevant_mapping_file, top10_root_mapping_file):
+    top10_root_mapping = evaluate_utils.read_json(top10_root_mapping_file)
+    top10_relevant_mapping = evaluate_utils.read_json(top10_relevant_mapping_file)
+    top10_root_comparison = extract_comparison_settings(top10_root_mapping)
+    top10_relevant_comparisons = extract_comparison_settings(top10_relevant_mapping)
+    return top10_root_comparison + top10_relevant_comparisons
+
+
 def is_target_comparison(file1, file2):
     """检查是否为目标比较组合"""
     comp1, ver1, opt1 = extract_compiler_info(file1)
     comp2, ver2, opt2 = extract_compiler_info(file2)
 
+    top10_relevant_mapping_file = "top10_relevant.json"
+    top10_root_mapping_file = "top10_root_equivalent.json"
     # 定义目标比较组合
-    target_combinations = [
-        ('gcc-11.2.0', 'Ofast', 'clang-6.0', 'O0'),
-        ('gcc-11.2.0', 'Ofast', 'clang-7.0', 'O0'),
-        ('gcc-11.2.0', 'Ofast', 'clang-4.0', 'O0'),
-        ('gcc-11.2.0', 'Ofast', 'clang-5.0', 'O0'),
-        ('gcc-11.2.0', 'O3', 'clang-6.0', 'O0'),
-        ('gcc-11.2.0', 'O3', 'clang-7.0', 'O0'),
-        ('gcc-11.2.0', 'O3', 'clang-4.0', 'O0'),
-        ('gcc-11.2.0', 'O3', 'clang-5.0', 'O0'),
-        ('gcc-6.5.0', 'Ofast', 'clang-4.0', 'O0'),
-        ('gcc-6.5.0', 'Ofast', 'clang-6.0', 'O0'),
+    # target_combinations = [
+    #     ('gcc-11.2.0', 'Ofast', 'clang-6.0', 'O0'),
+    #     ('gcc-11.2.0', 'Ofast', 'clang-7.0', 'O0'),
+    # ]
 
-        ('gcc', '7.3.0', 'Ofast', 'clang', '8.0', 'O0'),
-        ('gcc', '7.3.0', 'Ofast', 'clang', '9.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '8.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '9.0', 'O0'),
-        ('gcc', '7.3.0', 'Ofast', 'clang', '10.0', 'O0'),
-        ('gcc', '7.3.0', 'Ofast', 'clang', '11.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '10.0', 'O0'),
-        ('gcc', '7.3.0', 'O3', 'clang', '11.0', 'O0'),
-        ('gcc', '4.9.4', 'Ofast', 'clang', '8.0', 'O0'),
-        ('gcc', '4.9.4', 'Ofast', 'clang', '9.0', 'O0')
-    ]
+    target_combinations = read_from_mapping_files(top10_relevant_mapping_file, top10_root_mapping_file)
+    # print(target_combinations)
 
     combo1 = (f"{comp1}-{ver1}", opt1, f"{comp2}-{ver2}", opt2)
     combo2 = (f"{comp2}-{ver2}", opt2, f"{comp1}-{ver1}", opt1)
@@ -123,9 +128,7 @@ def is_same_compiler_diff_opt(file1, file2):
     if comp1 == comp2 and ver1 == ver2:
         # 确保优化级别不同
         if opt1 != opt2:
-            # 只比较O0与其他优化级别
-            if opt1 == 'O0' or opt2 == 'O0':
-                return True
+            return True
     return False
 
 
@@ -151,6 +154,22 @@ def run_BMVul_evaluation_in_linux(cmd):
 
             mapping_file1 = get_mapping_file(cluster_file1, mapping_folder)
             mapping_file2 = get_mapping_file(cluster_file2, mapping_folder)
+
+            result_dir = os.path.join(result_folder, binary_name)
+            if not os.path.exists(result_dir):
+                try:
+                    os.makedirs(result_dir)
+                except:
+                    pass
+
+            result_file = os.path.join(result_dir,
+                                       os.path.basename(mapping_file1.replace("_function_mapping", ""))
+                                       + "+" + os.path.basename(mapping_file2).replace("_function_mapping",
+                                                                                       "") + ".json")
+            if os.path.exists(result_file):
+                continue
+
+
             mapping1 = evaluate_utils.read_json(mapping_file1)
             mapping2 = evaluate_utils.read_json(mapping_file2)
 
@@ -164,21 +183,12 @@ def run_BMVul_evaluation_in_linux(cmd):
             cluster_mapping_statistics = evaluate_utils.summarize_mapping_statistics(
                 cluster_to_cluster_mappings)
 
-            result_dir = os.path.join(result_folder, binary_name)
-            if not os.path.exists(result_dir):
-                try:
-                    os.makedirs(result_dir)
-                except:
-                    pass
-            result_file = os.path.join(result_dir, os.path.basename(mapping_file1.replace("_function_mapping.json", ""))
-                                       + "+" + os.path.basename(mapping_file2).replace("_function_mapping.json",
-                                                                                       "") + ".json")
             evaluate_utils.write_json(result_file, cluster_mapping_statistics)
 
 
 def run_BMVul_evaluation_dispatcher(cmd_list):
     print("running evaluation")
-    process_num = 8
+    process_num = 16
     p = Pool(int(process_num))
     with tqdm(total=len(cmd_list)) as pbar:
         for i, res in tqdm(enumerate(p.imap_unordered(run_BMVul_evaluation_in_linux, cmd_list))):
@@ -209,7 +219,7 @@ def run_BMVul_evaluation(comparison_type="cross_compiler"):
 
 if __name__ == '__main__':
     # 运行跨编译器比较
-    # run_BMVul_evaluation(comparison_type="cross_compiler")
+    run_BMVul_evaluation(comparison_type="cross_compiler")
 
     # 运行同编译器不同优化级别比较
     run_BMVul_evaluation(comparison_type="same_compiler_diff_opt")

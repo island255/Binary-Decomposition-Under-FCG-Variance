@@ -111,17 +111,48 @@ def remove_inlined_node(common_nodes, mappings):
     return normal_common_nodes
 
 
+def extract_all_nodes_in_mapping(mapping):
+    all_functions = []
+    for bf in mapping:
+        bf_mapped_sfs = mapping[bf]
+        for sf in bf_mapped_sfs:
+            sf_name = sf[1]
+            all_functions.append(sf_name)
+    return all_functions
+
+def list_intersection(*lists):
+    if not lists:
+        return []
+    # 将第一个列表转换为集合
+    result = set(lists[0])
+    # 依次与其他列表求交集
+    for lst in lists[1:]:
+        result.intersection_update(lst)
+    return list(result)
+
+
+def identify_non_inlined_nodes(mappings):
+    function_list = []
+    inlined_function_list = []
+    for mapping in mappings:
+        inlined_functions = identify_inlined_functions(mapping)
+        functions = extract_all_nodes_in_mapping(mapping)
+        inlined_function_list = list(set(inlined_function_list + inlined_functions))
+        function_list.append(functions)
+    common_nodes = list_intersection(*function_list)
+    non_inlined_node = list(set(common_nodes).difference(inlined_function_list))
+    return non_inlined_node
+
+
+
 def identify_inlining_communities(fcgs, mappings):
-    common_nodes = get_common_nodes(fcgs)
-    non_common_nodes = get_non_common_nodes(fcgs, common_nodes)
-    common_nodes = remove_inlined_node(common_nodes, mappings)
+    non_inlined_nodes = identify_non_inlined_nodes(mappings)
+    # common_nodes = get_common_nodes(fcgs)
+    common_nodes = non_inlined_nodes
+    non_common_nodes = get_non_common_nodes(fcgs, non_inlined_nodes)
+    # common_nodes = remove_inlined_node(non_inlined_nodes, mappings)
 
-    # 为每个FCG生成communities
-    communities = []
-    for fcg in fcgs:
-        communities.append(traverse_from_common_nodes(fcg, common_nodes))
-
-    return communities, common_nodes, non_common_nodes
+    return common_nodes, non_common_nodes, non_inlined_nodes
 
 
 def summarize_mapping_statistics(cluster_to_cluster_mappings, cluster_mapping_statistics=None):
@@ -215,7 +246,7 @@ def get_fcg_files(FCG_folder, arch=None):
         for binary_fcg_name in os.listdir(project_folder):
             if not binary_fcg_name.endswith("fcg_pkl"):
                 continue
-            if "_mips_" in binary_fcg_name or "clang-13.0" in binary_fcg_name:
+            if "mips" in binary_fcg_name or "clang-13.0" in binary_fcg_name:
                 continue
             binary_path = os.path.join(project_folder, binary_fcg_name)
             binary_name = binary_fcg_name.replace(".i64.fcg.fcg_pkl", "").split("_")[-1]
@@ -257,7 +288,7 @@ def run_anchor_node_generation(cmd):
         mappings.append(read_json(get_mapping_file(fcg_file, mapping_folder)))
 
     # 处理一组FCG
-    communities, common_nodes, non_common_nodes = identify_inlining_communities(fcgs, mappings)
+    common_nodes, non_common_nodes, non_inlined_nodes = identify_inlining_communities(fcgs, mappings)
 
     # 为每个FCG记录其非公共节点
     non_common_nodes_info = []
@@ -270,6 +301,7 @@ def run_anchor_node_generation(cmd):
 
     anchor_info = {
         "anchor_node": common_nodes,
+        "non_inlined_nodes": non_inlined_nodes,
         "non_common_nodes": non_common_nodes_info,
         "fcg_files": fcg_names
     }
@@ -304,7 +336,7 @@ def get_anchor_node_in_linux():
     arch = ""
     fcg_files = get_fcg_files(FCG_folder, arch)
     mapping_folder = r"/data1/jiaang/binkit2/Dataset/mapping_results"
-    anchor_folder = r"/data1/jiaang/binkit2/7.anchor_node_identification/anchor"
+    anchor_folder = r"/data1/jiaang/binkit2/7.anchor_node_labeling/anchor"
     cmd_list = generate_cmds(fcg_files, mapping_folder, anchor_folder)
     run_anchor_node_generation_dispatcher(cmd_list)
 

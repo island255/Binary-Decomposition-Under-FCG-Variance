@@ -23,19 +23,17 @@ please refer to https://github.com/island255/TOSEM2022
 
 1. run `4.construct_function_mapping\draw_neighbor_difference.py` and `4.construct_function_mapping\draw_opt_difference.py` to analyze the node and neighbor difference
 
-2. run `5.implement_strategy_of_existing_works\BMVUL\run_BMVul_on_Binkit.py` and `5.implement_strategy_of_existing_works\BMVUL\run_BMVul_on_Binkit.py` to replicate BMVul and ModX
+2. run `4.construct_function_mapping\three_types_of_mappings\construct_three_types_of_mapping.py` and `4.construct_function_mapping\three_types_of_mappings\construct_cross_compiler_and_opt.py` to construct three types of mapping in cross-optimization evaluation and cross-compiler evaluation
 
-3. run `6.evaluate_existing_work\evaluate_BMVul_top10.py` and `6.evaluate_existing_work\evaluate_ModX_top10.py` to evaluate BMVul and ModX
+3. run `5.implement_strategy_of_existing_works\BMVUL\run_BMVul_on_Binkit.py` and `5.implement_strategy_of_existing_works\BMVUL\run_BMVul_on_Binkit.py` to replicate BMVul and ModX
 
-## N2NMatcher
+4. run `6.evaluate_existing_work\evaluate_BMVul.py` and `6.evaluate_existing_work\evaluate_ModX.py` to evaluate BMVul and ModX
 
-1. run `7.get_anchor_nodes\anchor_node_labeling.py` to label the anchor nodes and normal nodes
+## Optimal Decomposition
 
-2. run `8.classify_anchor_node_and_normal_nodes\extract_anchor_features.py` to extract features for nodes and `8.classify_anchor_node_and_normal_nodes\convert_node_features_to_vectors_with_function_name.py` to convert feature into vectors
+1. run `7.anchor_node_labeling\anchor_node_labeling.py` to label the non-inlined functions
 
-3. run `8.classify_anchor_node_and_normal_nodes\reorganize_features_by_arch.py` to divide the features file into different archs, and run `8.classify_anchor_node_and_normal_nodes\train_ensemble_classifier.py` to train N2NMatcher and other methods on anchor node identification.
-
-4. run `9.apply_classifier_to_fcg_nodes\run_classifier_on_fcg.py` to iterate N2NMatcher 10 times to cover all projects in testing and run `9.apply_classifier_to_fcg_nodes\evaluation\evaluate_top20.py` to evaluate N2NMatcher on binary decomposition.
+2. run `7.anchor_node_labeling\using_anchor_to_evaluate_existing_works\using_anchor_to_evaulate_existing_works.py` to compare existing works with the optimal decomposition
 
 ## License
 
