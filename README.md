@@ -34,7 +34,7 @@ please refer to https://github.com/island255/TOSEM2022
 
 ## Optimal Decomposition
 
-1. run `7.anchor_node_labeling\anchor_node_labeling.py` to label the non-inlined functions
+1. run `7.anchor_node_labeling\anchor_node_labeling.py` to label boundary functions
 
 2. run `7.anchor_node_labeling\using_anchor_to_evaluate_existing_works\using_anchor_to_evaulate_existing_works.py` to compare existing works with the optimal decomposition.
 
