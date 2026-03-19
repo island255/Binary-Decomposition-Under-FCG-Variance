@@ -1,5 +1,5 @@
 # N2NMatcher
-Repository for Paper “Binary Decomposition Under FCG Variance”
+Repository for Paper “Towards an Oracle for Binary Decomposition Under Compilation Variance”
 
 ## Dataset Labeling
 
