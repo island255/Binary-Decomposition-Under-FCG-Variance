@@ -24,19 +24,11 @@ please refer to https://github.com/island255/TOSEM2022
 2. run `4.construct_function_mapping\three_types_of_mappings\construct_three_types_of_mapping.py` and `4.construct_function_mapping\three_types_of_mappings\construct_cross_compiler_and_opt.py` to construct three types of mapping in cross-optimization evaluation and cross-compiler evaluation
 
 
-## Existing Works Replication
-
-1. run `4.construct_function_mapping\construct_function_mapping.py` to analyze the node and neighbor difference
-
-2. run `5.implement_strategy_of_existing_works\BMVUL\run_BMVul_on_Binkit.py` and `5.implement_strategy_of_existing_works\BMVUL\run_BMVul_on_Binkit.py` to replicate BMVul and ModX
-
-3. run `6.evaluate_existing_work\evaluate_BMVul.py` and `6.evaluate_existing_work\evaluate_ModX.py` to evaluate BMVul and ModX
-
 ## Optimal Decomposition
 
-1. run `7.anchor_node_labeling\anchor_node_labeling.py` to label boundary functions
+1. run `5.anchor_node_labeling\anchor_node_labeling.py` to label boundary functions
 
-2. run `7.anchor_node_labeling\using_anchor_to_evaluate_existing_works\using_anchor_to_evaulate_existing_works.py` to compare existing works with the optimal decomposition.
+2. run `5.anchor_node_labeling\extract_decomposition.py` to extact the decomposition rsults
 
 ## License
 
