@@ -32,4 +32,4 @@ please refer to https://github.com/island255/TOSEM2022
 
 ## License
 
-The code in this repository is licensed under the MIT License, however, some models and scripts in dataset labeling may depend on code with different licenses. Please refer to their original repositories. 
+The code in this repository is licensed under the GPL License, however, some models and scripts in dataset labeling may depend on code with different licenses. Please refer to their original repositories. 
